@@ -1,7 +1,8 @@
 import pygame
 import random
 import os
-
+from spritesheet import SpriteSheet
+from enemy import Enemy
 
 pygame.init()
 
@@ -45,6 +46,9 @@ font_big = pygame.font.SysFont('Lucida Sans', 24)
 bg_image = pygame.image.load('assets/bg.png').convert_alpha()
 jumpy_image = pygame.image.load('assets/jump.png').convert_alpha()
 platform_image = pygame.image.load('assets/wood.png').convert_alpha()
+#bird spritesheet
+bird_sheet_img = pygame.image.load('assets/bird.png').convert_alpha()
+bird_sheet = SpriteSheet(bird_sheet_img)
 
 #function for outputting text on screen
 def draw_text(text, font, text_col, x, y):
@@ -132,14 +136,26 @@ class Player():
 #Platform class
 class Platform(pygame.sprite.Sprite):
 
-    def __init__(self, x, y, width) -> None:
+    def __init__(self, x, y, width, moving) -> None:
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.transform.scale(platform_image, (width, 10))
+        self.moving = moving
+        self.move_counter = random.randint(0, 50)
+        self.direction = random.choice([-1, 1])
+        self.speed = random.randint(1, 5)
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
 
     def update(self, scroll):
+        #Move platform side to side if it is a moving platform
+        if self.moving == True:
+            self.move_counter += 1
+            self.rect.x += self.direction * self.speed
+        #Change platform direction if it has moved fully
+        if self.move_counter >= 100 or self.rect.left < 0 or self.rect.right > SCREEN_WIDTH:
+            self.direction *= -1
+            self.move_counter = 0
         #Update platforms vertical position
         self.rect.y += scroll
         #check if platform has gone off the screen
@@ -152,9 +168,10 @@ jumpy = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 150)
 
 #Create sprite groups
 platform_group = pygame.sprite.Group()
+enemy_group = pygame.sprite.Group()
 
 #Create starting platform
-platform = Platform(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 50, 200)
+platform = Platform(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 50, 200, False)
 platform_group.add(platform)
 
 
@@ -178,11 +195,23 @@ while True:
             p_w = random.randint(40, 60)
             p_x = random.randint(0, SCREEN_WIDTH - p_w)
             p_y = platform.rect.y - random.randint(80, 120)
-            platform = Platform(p_x, p_y, p_w)
+            p_type = random.randint(1, 2)
+            if p_type == 1 and score > 1000:
+                p_moving = True
+            else:
+                p_moving = False
+            platform = Platform(p_x, p_y, p_w, p_moving)
             platform_group.add(platform)
-
+        
         #update platforms
         platform_group.update(scroll)
+
+        #generate enemies
+        if len(enemy_group) == 0:
+            enemy = Enemy(SCREEN_WIDTH, 100, bird_sheet, 1.5)
+            enemy_group.add(enemy)
+
+        enemy_group.update(scroll, SCREEN_WIDTH)
 
         #update score
         if scroll > 0:
@@ -194,6 +223,7 @@ while True:
 
         #draw sprites
         platform_group.draw(screen)
+        enemy_group.draw(screen)
         jumpy.draw()
 
         #draw panel
@@ -228,10 +258,12 @@ while True:
             fade_counter = 0
             #reposition jumpy
             jumpy.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 150)
+            #Reset enemies
+            enemy_group.empty()
             #reset platforms
             platform_group.empty()
             #Create starting platform
-            platform = Platform(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 50, 200)
+            platform = Platform(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 50, 200, False)
             platform_group.add(platform)
 
 
